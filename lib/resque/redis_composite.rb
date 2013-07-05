@@ -1,19 +1,8 @@
 module Resque
-  alias_method :original_redis=, :redis=
-
-  def redis=(server)
-    if server.class == Resque::RedisComposite
-      @redis = server
-    else
-      Resque.original_redis = server
-    end
-  end
-
   class RedisComposite
+
     def initialize(config)
-      if config.is_a?(String)
-        config = {"default" => config}
-      end
+      config = { "default" => config } if config.is_a?(String) 
       raise "Please specify a default Redis instance" unless config.key?("default")
 
       @mapping = {}
@@ -93,5 +82,6 @@ module Resque
     def failed?(key)
       key.to_s == "failed"
     end
+
   end
 end

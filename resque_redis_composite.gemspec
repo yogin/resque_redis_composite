@@ -4,6 +4,7 @@ Gem::Specification.new do |s|
   s.authors = ["redsquirrel", "jiHyunBae"]
   s.summary = "Resque support for multiple Redis instances"
   s.files   = [
-    'lib/resque/redis_composite.rb'
+    'lib/resque_redis_composite.rb',
+    'lib/resque/redis_composite.rb',
   ]
 end
