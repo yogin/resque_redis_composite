@@ -1,22 +1,23 @@
+require 'resque'
 require 'resque/redis_composite'
+require 'active_support/concern'
+require 'active_support/core_ext/module/aliasing'
 
 module ResqueRedisComposite
+  extend ActiveSupport::Concern
 
-  def included(base)
-    base.class_eval do
-      alias_method :original_redis=, :redis=
-    end
+  included do
+    alias_method_chain :redis=, :composite
   end
 
-  def redis=(server)
+  def redis_with_composite=(server)
     if Resque::RedisComposite == server
       @redis = server
     else
-      Resque.original_redis = server
+      redis_without_composite = server
     end
   end
 
 end
 
 Resque.send(:include, ResqueRedisComposite)
-
