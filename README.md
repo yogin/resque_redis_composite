@@ -6,7 +6,8 @@ This gems allows Resque to handle queues located on seperate Redis servers.
 Requirements
 ------------
 
-Currently working and tested with Resque 1.23.x and 1.24.x
+Currently working with Resque 1.23.x and 1.24.x
+I haven't looked into Resque 2 yet, but it might be possible to natively handle multiple Redis instances with the new `Resque::Backend` class.
 
 Usage
 -----
