@@ -1,29 +1,41 @@
 module Resque
   class RedisComposite
-    class MissingDefaultRedisInstance < StandardError; end
+    class NoDefaultRedisServerError < StandardError; end
 
     DEFAULT_SERVER_NAME = 'default'
 
     attr_reader :mapping
 
+    class << self
+
+      def create(config)
+        Redis::Namespace.new(nil, :redis => RedisComposite.new(config))
+      end
+
+    end
+
     def initialize(config)
       config = { DEFAULT_SERVER_NAME => config } unless config.kind_of?(Hash)
-      config = HashWithIndifferentAccess.new(config)
-      raise MissingDefaultRedisInstance, "No default server defined in configuration : #{config.inspect}" unless config.key?(DEFAULT_SERVER_NAME)
 
-      @mapping = config.inject(HashWithIndifferentAccess.new) do |hash, (queue_name, instance)|
+      config = HashWithIndifferentAccess.new(config)
+      raise NoDefaultRedisServerError, "No default server defined in configuration : #{config.inspect}" unless config.key?(DEFAULT_SERVER_NAME)
+
+      @mapping = config.inject(HashWithIndifferentAccess.new) do |hash, (queue_name, server)|
         # leaving Resque create Redis::Namespace instances
-        Resque.redis = instance
+        Resque.redis = server
+
         hash[queue_name] = Resque.redis
         hash
       end
     end
 
     def method_missing(method_name, *args, &block)
-      default_server.send(method_name, *args, &block)
+      # most redis command's first parameter is the key, so it should work most of the time
+      server_for(args.first).send(method_name, *args, &block)
     end
 
     def client(queue = DEFAULT_SERVER_NAME)
+      # TODO properly handle Resque.redis_id, probably need to return all our client ids
       server_for(queue).client
     end
 
@@ -45,6 +57,15 @@ module Resque
       end
     end
 
+    # This is used to completely delete a queue, so needs some special treatment
+    def srem(key, value)
+      if queues?(key)
+        server_for(value).srem(key, value)
+      else
+        server_for(key).srem(key, value)
+      end
+    end
+
     # Sometimes we're pushing onto the 'failed' queue, and we want to make sure
     # the failures are pushed into the same Redis server as the queue is hosted on.
     def rpush(key, value)
@@ -56,25 +77,17 @@ module Resque
       end
     end
 
-    def lpop(key)
-      redis_server_for(key).lpop(key)
-    end
-
-    def namespace=(ignored)
-      # this is here so that we don't get double-namespaced by Resque's initializer
-    end
-
     protected
 
-    def servers # servers
+    def servers
       @mapping.values
     end
 
-    def default_server # default_server
+    def default_server
       @mapping[DEFAULT_SERVER_NAME]
     end
 
-    def server_for(queue) # server
+    def server_for(queue)
       # queue_name = queue.to_s.sub(/^queue:/, "")
       # queue parsing : not match regular expression
       queue_name = queue.to_s.sub(/[\W\w]*queue:/,"")
