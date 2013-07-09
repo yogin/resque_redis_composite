@@ -2,15 +2,17 @@ module Resque
   class RedisComposite
     class MissingDefaultRedisInstance < StandardError; end
 
-    DEFAULT_INSTANCE_NAME = 'default'
+    DEFAULT_SERVER_NAME = 'default'
 
-    attr_reader :queue_mapping
+    attr_reader :mapping
 
     def initialize(config)
-      config = { DEFAULT_INSTANCE_NAME => config } if config.kind_of?(String)
-      raise MissingDefaultRedisInstance, 'No default instance defined' unless config.key?(DEFAULT_INSTANCE_NAME)
+      config = { DEFAULT_SERVER_NAME => config } unless config.kind_of?(Hash)
+      config = HashWithIndifferentAccess.new(config)
+      raise MissingDefaultRedisInstance, "No default server defined in configuration : #{config.inspect}" unless config.key?(DEFAULT_SERVER_NAME)
 
-      @queue_mapping = config.inject({}) do |hash, (queue_name, instance)|
+      @mapping = config.inject(HashWithIndifferentAccess.new) do |hash, (queue_name, instance)|
+        # leaving Resque create Redis::Namespace instances
         Resque.redis = instance
         hash[queue_name] = Resque.redis
         hash
@@ -18,28 +20,28 @@ module Resque
     end
 
     def method_missing(method_name, *args, &block)
-      default_instance.send(method_name, *args, &block)
+      default_server.send(method_name, *args, &block)
     end
 
-    def client(queue = DEFAULT_INSTANCE_NAME)
-      redis_instance_for(queue).client
+    def client(queue = DEFAULT_SERVER_NAME)
+      server_for(queue).client
     end
 
     # This is used to create a set of queue names, so needs some special treatment
     def sadd(key, value)
       if queues?(key)
-        redis_instance_for(value).sadd(key, value)
+        server_for(value).sadd(key, value)
       else
-        redis_instance_for(key).sadd(key, value)
+        server_for(key).sadd(key, value)
       end
     end
 
     # If we're using smembers to get queue names, we aggregate across all servers
     def smembers(key)
       if queues?(key)
-        redis_instances.inject([]) { |a, s| a + s.smembers(key) }.uniq
+        servers.inject([]) { |a, s| a + s.smembers(key) }.uniq
       else
-        redis_instance_for(key).smembers(key)
+        server_for(key).smembers(key)
       end
     end
 
@@ -48,14 +50,14 @@ module Resque
     def rpush(key, value)
       if failed?(key)
         queue_with_failure = Resque.decode(value)["queue"]
-        redis_instance_for(queue_with_failure).rpush(key, value)
+        server_for(queue_with_failure).rpush(key, value)
       else
-        redis_instance_for(key).rpush(key, value)
+        server_for(key).rpush(key, value)
       end
     end
 
     def lpop(key)
-      redis_instance_for(key).lpop(key)
+      redis_server_for(key).lpop(key)
     end
 
     def namespace=(ignored)
@@ -64,19 +66,19 @@ module Resque
 
     protected
 
-    def redis_instances # servers
-      @queue_mapping.values
+    def servers # servers
+      @mapping.values
     end
 
-    def default_instance # default_server
-      @queue_mapping[DEFAULT_INSTANCE_NAME]
+    def default_server # default_server
+      @mapping[DEFAULT_SERVER_NAME]
     end
 
-    def redis_instance_for(queue) # server
+    def server_for(queue) # server
       # queue_name = queue.to_s.sub(/^queue:/, "")
       # queue parsing : not match regular expression
       queue_name = queue.to_s.sub(/[\W\w]*queue:/,"")
-      @queue_mapping[queue_name] || default_instance
+      @mapping[queue_name] || default_server
     end
 
     def queues?(key)
