@@ -1,4 +1,3 @@
-
 resque_redis_composite
 ======================
 
@@ -23,7 +22,7 @@ Alternatively, `config` can be one of :
 
   * a single connection string, it will become the default connection:
 
-    config = "localhost:6379"
+    `config = "localhost:6379"`
 
   * a hash with any combination of server values supported by Resque:
     * a Redis connection url : `redis://...`
