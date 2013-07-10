@@ -9,6 +9,15 @@ Requirements
 Currently working with Resque 1.23.x and 1.24.x
 I haven't looked into Resque 2 yet, but it might be possible to natively handle multiple Redis instances with the new `Resque::Backend` class.
 
+Install & Setup
+---------------
+
+Configure Resque in your application:
+
+    Resque.after_fork do |job|
+      Resque::RedisComposite.reconnect_all(job)
+    end
+
 Usage
 -----
 

@@ -12,6 +12,11 @@ module Resque
         Redis::Namespace.new(nil, :redis => RedisComposite.new(config))
       end
 
+      def reconnect_all(job = nil)
+        return unless Resque.redis.redis.kind_of?(Resque::RedisComposite)
+        Resque.redis.mapping.each { |_, server| server.redis.client.reconnect }
+      end
+
     end
 
     def initialize(config)
