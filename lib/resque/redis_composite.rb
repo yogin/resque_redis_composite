@@ -20,6 +20,9 @@ module Resque
       config = HashWithIndifferentAccess.new(config)
       raise NoDefaultRedisServerError, "No default server defined in configuration : #{config.inspect}" unless config.key?(DEFAULT_SERVER_NAME)
 
+      # quick backup for what's in Resque
+      original_resque_server = Resque.redis
+
       @mapping = config.inject(HashWithIndifferentAccess.new) do |hash, (queue_name, server)|
         # leaving Resque create Redis::Namespace instances
         Resque.redis = server
@@ -27,6 +30,8 @@ module Resque
         hash[queue_name] = Resque.redis
         hash
       end
+
+      Resque.redis = original_resque_server
     end
 
     def method_missing(method_name, *args, &block)
