@@ -51,7 +51,8 @@ Resque Stats will always be stored on the `default` Redis server.
 TODO
 ----
 
-Keep an eye out for Resque 2.0 and evalute if this gems is still going to be useful
+  * Keep an eye out for Resque 2.0 and evalute if this gems is still going to be useful
+  * Review specs
 
 Authors
 -------
