@@ -30,3 +30,8 @@ Alternatively, `config` can be one of :
     * a Redis client : `Redis.new(:host => ..., :port => ...)`
     * a Redis namespace : `Redis::Namespace(..., :redis => ...)`
 
+Notes
+-----
+
+Resque Stats will always be stored on the `default` Redis server.
+
